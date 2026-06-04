@@ -30,7 +30,7 @@
     tabsize=4
 }
 
-\title{Problem 2: Sphere Tracing and Volumetric Rendering}
+\title{Homework Report}
 \author{}
 \date{}
 
@@ -40,12 +40,6 @@
 %==================================================================
 \section{Problem 2.1: Sphere Tracing}
 %==================================================================
-
-\subsection{Overview}
-In this part I implemented a sphere tracing renderer for an implicit scene made of two
-spheres (blue and green), each defined by its Signed Distance Function (SDF). The pipeline
-has two stages: (i) generating one ray per pixel from the camera parameters, and (ii)
-marching each ray forward by the SDF value until it reaches a surface.
 
 \subsection{Code}
 % -------- Paste / screenshot your code here --------
@@ -79,21 +73,8 @@ marching each ray forward by the SDF value until it reaches a surface.
 \end{figure}
 
 %==================================================================
-\section{Problem 2.2: Differentiable Volume Rendering}
+\section{Differentiable Volume Rendering}
 %==================================================================
-
-\subsection{Overview}
-Here I implemented a differentiable volume renderer. Instead of jumping to the surface, the
-ray is split into \texttt{num\_samples} sample points between $t_{near}$ and $t_{far}$. At
-every sample the implicit model returns a density $\sigma_i$ and a color $c_i$, and the final
-pixel color is computed with the classical volume rendering equation
-\begin{equation}
-    C = \sum_i T_i\,\alpha_i\,c_i, \qquad
-    \alpha_i = 1 - e^{-\sigma_i \delta_i}, \qquad
-    T_i = \prod_{j=1}^{i-1}\left(1-\alpha_j\right),
-\end{equation}
-where $\delta_i$ is the distance between adjacent samples and $T_i$ is the accumulated
-transmittance (how much light survives up to sample $i$).
 
 \subsection{Code}
 \vspace{1cm}
@@ -112,40 +93,11 @@ transmittance (how much light survives up to sample $i$).
 \end{figure}
 
 %==================================================================
-\subsection{Question: Why is volume rendering preferred over sphere tracing?}
+\subsection{Why is volume rendering preferred over sphere tracing?}
 %==================================================================
 
-In modern differentiable rendering, volumetric rendering is used far more often than sphere
-tracing. There are a few reasons for this:
+Not everything has a strict surface. Sphere tracing expects the world to be made of solid objects.  But if you try to render smoke, hair, or fire, there's no real 'surface' to hit. Volume rendering just uses a density field, so it naturally handles all the fluffy and transparent stuff that SDFs struggle with.
 
-\begin{itemize}
-    \item \textbf{It is smooth and differentiable everywhere.} Volume rendering integrates a
-    continuous density field, so the final color is a smooth function of the scene parameters
-    and \emph{every} sample along the ray receives a gradient. Sphere tracing, on the other
-    hand, returns a single hard surface hit and uses a variable number of marching steps with
-    a hard threshold ($\text{SDF} < \epsilon$). This makes its gradients sparse and poorly
-    defined, which is bad for optimization.
-
-    \item \textbf{Not everything in the world is a well-defined surface.} Sphere tracing
-    fundamentally assumes the scene is a solid surface described by a valid SDF. But many
-    real phenomena -- smoke, fog, clouds, fur, hair, fire, or semi-transparent materials --
-    simply do not have a clean surface. A density field naturally represents these soft,
-    volumetric, and semi-transparent effects, while an SDF cannot.
-
-    \item \textbf{It does not require a valid SDF.} Volume rendering works with an arbitrary
-    density field, so a network is free to learn any volume without being forced to satisfy
-    the strict distance (Eikonal) constraint that an SDF must obey. This makes it much easier
-    to learn a scene from images, which is exactly what methods like NeRF rely on.
-
-    \item \textbf{Soft accumulation handles edges and uncertainty.} Because the color is a
-    weighted average over many samples, thin structures, object boundaries, and uncertain
-    regions all contribute gradients, instead of the optimization depending on one surface
-    point. This generally leads to more stable training.
-\end{itemize}
-
-In short: volume rendering gives clean gradients to many samples and can represent both solid
-objects and fuzzy volumetric stuff, which is why it became the standard tool for
-differentiable and neural rendering.
 
 %==================================================================
 \section{Extra Challenge}
@@ -177,5 +129,137 @@ samples increases? ]}
 
 \noindent\textit{[ Short discussion: implementation of stratified sampling and the difference
 you observe compared to uniform sampling. ]}
+
+
+%==================================================================
+\section{Problem 3: Playing with a NeRF}
+%==================================================================
+
+\subsection{Positional Encoding of NeRF}
+
+I implemented the positional encoding of Equation (4) of \emph{NeRF: Representing Scenes
+as Neural Radiance Fields} (Mildenhall et al., 2020). Each input coordinate $p$ is mapped
+to a set of sinusoids at geometrically increasing frequencies:
+\begin{equation}
+    \gamma(p) = \Big(\sin(\omega_0 p),\,\cos(\omega_0 p),\,\ldots,\,
+                     \sin(\omega_{L-1} p),\,\cos(\omega_{L-1} p)\Big),
+    \qquad \omega_k = 2\pi \cdot 2^{k},
+\end{equation}
+where $L$ is the number of octaves (\texttt{num\_octaves}). The lowest frequency is
+$\omega_0 = 2\pi$, and each subsequent frequency doubles the previous one. Every channel of
+the input is encoded independently with both a sine and a cosine term, so the output
+dimensionality is $\texttt{dim} \times 2 \times \texttt{num\_octaves}$.
+
+\paragraph{Code (filled-in lines).}
+\begin{lstlisting}[style=py]
+# Create a tensor of frequencies.
+# Lowest frequency is 2*pi, each subsequent frequency doubles: omega_k = 2*pi * 2**k
+freq_bands = 2.0 * torch.pi * (
+    2.0 ** torch.arange(
+        self.num_octaves, device=samples.device, dtype=samples.dtype
+    )
+)
+
+# Fill the tensor with sine and cosine embedded values.
+for i, freq in enumerate(freq_bands):
+    embedded_samples[..., i :: 2 * self.num_octaves] = torch.sin(samples * freq)
+    embedded_samples[..., i + self.num_octaves :: 2 * self.num_octaves] = (
+        torch.cos(samples * freq)
+    )
+\end{lstlisting}
+
+% --- Optional: replace the listing above with a screenshot of your code ---
+% \begin{figure}[h]
+%     \centering
+%     \includegraphics[width=\linewidth]{images/code_positional_encoding.png}
+%     \caption{Filled-in \texttt{PositionalEncoding.forward}.}
+% \end{figure}
+
+\paragraph{Test result.} Running \texttt{python -m tests.test\_positional\_encoding} passes.
+\begin{figure}[h]
+    \centering
+    % \includegraphics[width=0.7\linewidth]{images/pe_test_pass.png}
+    \fbox{\parbox[c][3cm][c]{0.7\linewidth}{\centering \textit{[ screenshot of the passing positional-encoding test goes here ]}}}
+    \caption{Output of the positional-encoding unit test.}
+    \label{fig:pe_test}
+\end{figure}
+
+\subsection{NeRF Forward Pass}
+
+The volumetric rendering in \texttt{src/nerf.py} was already mostly implemented; only the final
+compositing call had to be filled in. After generating midpoint samples along each ray,
+evaluating the field, and computing the per-segment $\alpha$ values, the ray color is obtained
+by alpha-compositing the colors with their $\alpha$ values (assuming a black background):
+\begin{lstlisting}[style=py]
+# 4. Composite the alpha values and colors.
+radiance = self.alpha_composite(alphas, colors)
+\end{lstlisting}
+
+% --- Optional: replace the listing above with a screenshot of your code ---
+% \begin{figure}[h]
+%     \centering
+%     \includegraphics[width=\linewidth]{images/code_nerf_forward.png}
+%     \caption{Filled-in line in \texttt{NeRF.forward}.}
+% \end{figure}
+
+\begin{figure}[h]
+    \centering
+    % \includegraphics[width=\linewidth]{images/code_nerf_forward.png}
+    \fbox{\parbox[c][4cm][c]{0.9\linewidth}{\centering \textit{[ optional: screenshot of the full \texttt{NeRF.forward} method goes here ]}}}
+    \caption{The NeRF forward pass (sample $\rightarrow$ evaluate field $\rightarrow$ alpha $\rightarrow$ composite).}
+    \label{fig:nerf_forward}
+\end{figure}
+
+\subsection{Question: Difference from the Original NeRF Paper}
+
+The rendering model in this assignment differs from the original NeRF paper in (at least)
+the following ways (the hint points at \emph{rendering} and \emph{ray sampling}):
+
+\begin{itemize}
+    \item \textbf{No view-direction dependence (rendering).} Our neural field maps a 3D
+    \emph{position} $\mathbf{x}=(x,y,z)$ directly to an RGB color and a density. The original
+    NeRF additionally conditions the color on the \emph{viewing direction} $\mathbf{d}$
+    (a 5D input $(\mathbf{x},\mathbf{d})$), which lets it model view-dependent effects such as
+    specular highlights and reflections. Our color is purely a function of position, so it
+    cannot represent such effects.
+
+    \item \textbf{Deterministic, single-scale ray sampling (ray sampling).} We split each ray
+    into equally spaced segments and always query the fixed \emph{midpoints} of those segments
+    (see \texttt{generate\_samples}). The original NeRF instead uses \emph{stratified} sampling
+    (a random jitter within each bin during training) and a \emph{hierarchical} coarse-to-fine
+    scheme with two networks, where a second ``fine'' network is sampled more densely around
+    regions of high density predicted by the ``coarse'' network. Our implementation uses a
+    single network with no random jitter and no hierarchical resampling.
+\end{itemize}
+
+\noindent\textit{(Either of the two points above is a sufficient answer to the question.)}
+
+\subsection{Final Rendering (\texttt{outputs/spin})}
+
+The model was trained with \texttt{python -m scripts.train\_nerf}. Below are final views from
+the \texttt{outputs/spin} folder. The 3D structure of the \texttt{lego} scene is perceivable
+even though the result is somewhat blurred.
+
+\begin{figure}[h]
+    \centering
+    \begin{subfigure}{0.45\linewidth}
+        \centering
+        % \includegraphics[width=\linewidth]{images/spin_1.png}
+        \fbox{\parbox[c][5cm][c]{\linewidth}{\centering \textit{[ spin image 1 goes here ]}}}
+        \caption{Final rendering, view 1.}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.45\linewidth}
+        \centering
+        % \includegraphics[width=\linewidth]{images/spin_2.png}
+        \fbox{\parbox[c][5cm][c]{\linewidth}{\centering \textit{[ spin image 2 goes here ]}}}
+        \caption{Final rendering, view 2.}
+    \end{subfigure}
+    \caption{At least two final images from the \texttt{outputs/spin} folder after training.}
+    \label{fig:spin}
+\end{figure}
+
+\noindent\textit{[ Optional: note the training configuration you used (number of MLP layers,
+hidden size, number of iterations, device, and training time). ]}
 
 \end{document}

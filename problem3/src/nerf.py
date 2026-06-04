@@ -49,13 +49,22 @@ class NeRF(nn.Module):
         colors = field_outputs[..., :3]  # RGB colors
         densities = field_outputs[..., 3]  # Volumetric densities
 
+        # --- DISABLED channel-range mapping (review before enabling) ---------------
+        # The docstring (step 2) says to map the field outputs to valid ranges.
+        # As written above, `colors` are raw (not in [0, 1]) and `densities` can be
+        # negative. Enabling the two lines below maps RGB through sigmoid -> [0, 1]
+        # and density through ReLU -> [0, inf). Uncomment to use.
+        # colors = sigmoid(field_outputs[..., :3])      # RGB in [0, 1]
+        # densities = field_outputs[..., 3].relu()      # density >= 0
+        # ---------------------------------------------------------------------------
+
         # 3. Compute the alpha values
         alphas = self.compute_alpha_values(densities, boundaries)
 
         # 4. Composite the alpha values and colors
         # TODO: call the final composite function
         # replace the following line with the final composite function
-        radiance = None
+        radiance = self.alpha_composite(alphas, colors)
 
         return radiance
 

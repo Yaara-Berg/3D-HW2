@@ -23,7 +23,13 @@ class PositionalEncoding(nn.Module):
         # TODO: materize frequency bands
         # Copy the below code (a few lines is enough) to the final submission report.
         # Better to add a small title "Positional Encoding of NeRF" in the report.
-        freq_bands = None
+        # Lowest frequency is 2*pi, and each subsequent frequency doubles:
+        # freq_k = 2*pi * 2**k  for k = 0, ..., num_octaves - 1
+        freq_bands = 2.0 * torch.pi * (
+            2.0 ** torch.arange(
+                self.num_octaves, device=samples.device, dtype=samples.dtype
+            )
+        )
 
         # Create the output tensor
         embedded_dim = list(samples.size())
@@ -36,6 +42,9 @@ class PositionalEncoding(nn.Module):
             # TODO: materize the PE for cos.
             # Copy the below code (a few lines is enough) to the final submission report.
             # Better to add a small title "Positional Encoding of NeRF" in the report
+            embedded_samples[..., i + self.num_octaves :: 2 * self.num_octaves] = (
+                torch.cos(samples * freq)
+            )
 
         return embedded_samples
 
