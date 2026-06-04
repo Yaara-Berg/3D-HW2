@@ -1,0 +1,181 @@
+\documentclass[11pt]{article}
+
+% ---------- Packages ----------
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{hyperref}
+
+% ---------- Code listing style (for pasted code, optional) ----------
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codegreen}{rgb}{0,0.5,0}
+\definecolor{codeblue}{rgb}{0.1,0.1,0.7}
+\lstdefinestyle{py}{
+    language=Python,
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\color{codeblue},
+    commentstyle=\color{codegray}\itshape,
+    stringstyle=\color{codegreen},
+    numbers=left,
+    numberstyle=\tiny\color{codegray},
+    breaklines=true,
+    frame=single,
+    showstringspaces=false,
+    tabsize=4
+}
+
+\title{Problem 2: Sphere Tracing and Volumetric Rendering}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+%==================================================================
+\section{Problem 2.1: Sphere Tracing}
+%==================================================================
+
+\subsection{Overview}
+In this part I implemented a sphere tracing renderer for an implicit scene made of two
+spheres (blue and green), each defined by its Signed Distance Function (SDF). The pipeline
+has two stages: (i) generating one ray per pixel from the camera parameters, and (ii)
+marching each ray forward by the SDF value until it reaches a surface.
+
+\subsection{Code}
+% -------- Paste / screenshot your code here --------
+% You can either screenshot the functions and use \includegraphics,
+% or paste the source directly using the listings block below.
+
+% --- Option A: screenshot ---
+% \begin{figure}[h]
+%     \centering
+%     \includegraphics[width=\linewidth]{images/code_sphere_tracing.png}
+%     \caption{\texttt{camera\_param\_to\_rays} and \texttt{sphere\_tracing}.}
+% \end{figure}
+
+% --- Option B: paste the code ---
+% \begin{lstlisting}[style=py]
+% # paste camera_param_to_rays + sphere_tracing here
+% \end{lstlisting}
+
+\vspace{1cm}
+\textit{[ Paste the code for \texttt{camera\_param\_to\_rays} and \texttt{sphere\_tracing} here ]}
+\vspace{1cm}
+
+\subsection{Rendered Result (\texttt{submit} intrinsics)}
+% -------- Place the sphere tracing render here --------
+\begin{figure}[h]
+    \centering
+    % \includegraphics[width=0.9\linewidth]{images/sphere_tracing.png}
+    \fbox{\parbox[c][5cm][c]{0.9\linewidth}{\centering \textit{[ sphere\_tracing.png goes here ]}}}
+    \caption{Sphere tracing result for the two camera views (blue and green spheres).}
+    \label{fig:sphere_tracing}
+\end{figure}
+
+%==================================================================
+\section{Problem 2.2: Differentiable Volume Rendering}
+%==================================================================
+
+\subsection{Overview}
+Here I implemented a differentiable volume renderer. Instead of jumping to the surface, the
+ray is split into \texttt{num\_samples} sample points between $t_{near}$ and $t_{far}$. At
+every sample the implicit model returns a density $\sigma_i$ and a color $c_i$, and the final
+pixel color is computed with the classical volume rendering equation
+\begin{equation}
+    C = \sum_i T_i\,\alpha_i\,c_i, \qquad
+    \alpha_i = 1 - e^{-\sigma_i \delta_i}, \qquad
+    T_i = \prod_{j=1}^{i-1}\left(1-\alpha_j\right),
+\end{equation}
+where $\delta_i$ is the distance between adjacent samples and $T_i$ is the accumulated
+transmittance (how much light survives up to sample $i$).
+
+\subsection{Code}
+\vspace{1cm}
+\textit{[ Paste the code for \texttt{camera\_param\_to\_rays}, \texttt{sample\_points\_on\_rays} and \texttt{volume\_rendering} here ]}
+\vspace{1cm}
+
+\subsection{Rendered Result (\texttt{submit} intrinsics)}
+% -------- Place the volume rendering render here --------
+\begin{figure}[h]
+    \centering
+    % \includegraphics[width=0.9\linewidth]{images/volume_rendering.png}
+    \fbox{\parbox[c][5cm][c]{0.9\linewidth}{\centering \textit{[ volume\_rendering.png goes here ]}}}
+    \caption{Volume rendering result for the two camera views
+    (blue/green spheres, red/yellow cubes).}
+    \label{fig:volume_rendering}
+\end{figure}
+
+%==================================================================
+\subsection{Question: Why is volume rendering preferred over sphere tracing?}
+%==================================================================
+
+In modern differentiable rendering, volumetric rendering is used far more often than sphere
+tracing. There are a few reasons for this:
+
+\begin{itemize}
+    \item \textbf{It is smooth and differentiable everywhere.} Volume rendering integrates a
+    continuous density field, so the final color is a smooth function of the scene parameters
+    and \emph{every} sample along the ray receives a gradient. Sphere tracing, on the other
+    hand, returns a single hard surface hit and uses a variable number of marching steps with
+    a hard threshold ($\text{SDF} < \epsilon$). This makes its gradients sparse and poorly
+    defined, which is bad for optimization.
+
+    \item \textbf{Not everything in the world is a well-defined surface.} Sphere tracing
+    fundamentally assumes the scene is a solid surface described by a valid SDF. But many
+    real phenomena -- smoke, fog, clouds, fur, hair, fire, or semi-transparent materials --
+    simply do not have a clean surface. A density field naturally represents these soft,
+    volumetric, and semi-transparent effects, while an SDF cannot.
+
+    \item \textbf{It does not require a valid SDF.} Volume rendering works with an arbitrary
+    density field, so a network is free to learn any volume without being forced to satisfy
+    the strict distance (Eikonal) constraint that an SDF must obey. This makes it much easier
+    to learn a scene from images, which is exactly what methods like NeRF rely on.
+
+    \item \textbf{Soft accumulation handles edges and uncertainty.} Because the color is a
+    weighted average over many samples, thin structures, object boundaries, and uncertain
+    regions all contribute gradients, instead of the optimization depending on one surface
+    point. This generally leads to more stable training.
+\end{itemize}
+
+In short: volume rendering gives clean gradients to many samples and can represent both solid
+objects and fuzzy volumetric stuff, which is why it became the standard tool for
+differentiable and neural rendering.
+
+%==================================================================
+\section{Extra Challenge}
+%==================================================================
+
+\subsection{Effect of the number of samples}
+% -------- Place renders with different sample counts here --------
+\begin{figure}[h]
+    \centering
+    % \includegraphics[width=0.9\linewidth]{images/samples_comparison.png}
+    \fbox{\parbox[c][5cm][c]{0.9\linewidth}{\centering \textit{[ renders with different num\_samples go here ]}}}
+    \caption{Effect of changing the number of samples along each ray
+    (e.g.\ 16 / 64 / 256 samples).}
+    \label{fig:samples}
+\end{figure}
+
+\noindent\textit{[ Short discussion: how does rendering quality change as the number of
+samples increases? ]}
+
+\subsection{Stratified sampling}
+% -------- Place stratified sampling visualization here --------
+\begin{figure}[h]
+    \centering
+    % \includegraphics[width=0.9\linewidth]{images/stratified_sampling.png}
+    \fbox{\parbox[c][5cm][c]{0.9\linewidth}{\centering \textit{[ stratified sampling visualization goes here ]}}}
+    \caption{Uniform sampling vs.\ stratified sampling.}
+    \label{fig:stratified}
+\end{figure}
+
+\noindent\textit{[ Short discussion: implementation of stratified sampling and the difference
+you observe compared to uniform sampling. ]}
+
+\end{document}

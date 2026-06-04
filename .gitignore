@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pdb
+*.egg
+*.egg-info/
+*.dist-info/
+build/
+dist/
+__pycache__/
+*.so
+
+# Virtual environments
+venv/
+.env/
+.env
+.venv/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# PyTorch / safetensors caches
+*.safetensors
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
