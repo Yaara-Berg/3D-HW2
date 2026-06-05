@@ -22,10 +22,14 @@
     keywordstyle=\color{codeblue},
     commentstyle=\color{codegray}\itshape,
     stringstyle=\color{codegreen},
-    numbers=left,
-    numberstyle=\tiny\color{codegray},
+    numbers=none,
     breaklines=true,
     frame=single,
+    rulecolor=\color{codegray},
+    backgroundcolor=\color{gray!8},
+    framesep=8pt,
+    aboveskip=12pt,
+    belowskip=12pt,
     showstringspaces=false,
     tabsize=4
 }
@@ -42,33 +46,88 @@
 %==================================================================
 
 \subsection{Code}
-% -------- Paste / screenshot your code here --------
-% You can either screenshot the functions and use \includegraphics,
-% or paste the source directly using the listings block below.
 
-% --- Option A: screenshot ---
-% \begin{figure}[h]
-%     \centering
-%     \includegraphics[width=\linewidth]{images/code_sphere_tracing.png}
-%     \caption{\texttt{camera\_param\_to\_rays} and \texttt{sphere\_tracing}.}
-% \end{figure}
+\noindent\textbf{Part A: Camera rays.}
+\begin{lstlisting}[style=py]
+def camera_param_to_rays(c2w, intrinsics, H=128, W=128):
+    device = c2w.device
+    c2w = c2w.to(torch.float32)
+    intrinsics = intrinsics.to(torch.float32)
+    fx, fy, cx, cy = intrinsics[0], intrinsics[1], intrinsics[2], intrinsics[3]
 
-% --- Option B: paste the code ---
-% \begin{lstlisting}[style=py]
-% # paste camera_param_to_rays + sphere_tracing here
-% \end{lstlisting}
+    # 1. Pixel grid: i indexes rows (y), j indexes columns (x)
+    i, j = torch.meshgrid(
+        torch.arange(H, device=device, dtype=torch.float32),
+        torch.arange(W, device=device, dtype=torch.float32),
+        indexing="ij",
+    )
+    x = j + 0.5  # shift to pixel centers
+    y = i + 0.5
 
-\vspace{1cm}
-\textit{[ Paste the code for \texttt{camera\_param\_to\_rays} and \texttt{sphere\_tracing} here ]}
-\vspace{1cm}
+    # 2. Pixel -> camera coordinates
+    X_cam = (x - cx) / fx
+    Y_cam = (y - cy) / fy
+    Z_cam = torch.ones_like(X_cam)
+    dirs_cam = torch.stack([X_cam, Y_cam, Z_cam], dim=-1)  # [H, W, 3]
 
-\subsection{Rendered Result (\texttt{submit} intrinsics)}
-% -------- Place the sphere tracing render here --------
+    # 3. Camera -> world (rotate by the rotation block of c2w)
+    R = c2w[:3, :3]
+    ray_directions = dirs_cam @ R.T  # [H, W, 3]
+
+    # Normalize directions to unit length
+    ray_directions = ray_directions / ray_directions.norm(dim=-1, keepdim=True)
+
+    # Origins = camera position in world, broadcast to every pixel
+    ray_origins = c2w[:3, 3].expand(H, W, 3).contiguous()
+
+    return ray_origins, ray_directions
+\end{lstlisting}
+
+\noindent\textbf{Part B: Sphere tracing.}
+\begin{lstlisting}[style=py]
+def sphere_tracing(ray_origins, ray_directions, model,
+                   t_near=0.0, t_far=3.0, max_iter=256, epsilon=1e-4):
+    device = ray_origins.device
+    H, W, _ = ray_origins.shape
+
+    # Initialize output
+    image = torch.zeros(H, W, 3, device=device)
+
+    # 1. Initialize per-ray distance t and a hit mask
+    t = torch.full((H, W), float(t_near), device=device)
+    hit_mask = torch.zeros(H, W, dtype=torch.bool, device=device)
+
+    # 2. March along the rays
+    for _ in range(max_iter):
+        # Current sample points along each ray
+        points = ray_origins + t.unsqueeze(-1) * ray_directions  # [H, W, 3]
+
+        # Query the implicit model (batched over all rays)
+        sdf, color = model(points.reshape(-1, 3))
+        sdf = sdf.reshape(H, W)
+        color = color.reshape(H, W, 3)
+
+        # Rays that hit the surface this step (and are still within range)
+        newly_hit = (sdf < epsilon) & (~hit_mask) & (t <= t_far)
+
+        # Record the surface color for newly-hit rays
+        image[newly_hit] = color[newly_hit]
+        hit_mask |= newly_hit
+
+        # Advance only the rays that have not hit yet (0.5 relaxation factor)
+        t = torch.where(hit_mask, t, t + 0.5 * sdf)
+
+        # Early exit when everything has hit or marched past the far plane
+        if hit_mask.all() or (t > t_far).all():
+            break
+
+    return image
+\end{lstlisting}
+
+\subsection{Rendered Result}
 \begin{figure}[h]
     \centering
-    % \includegraphics[width=0.9\linewidth]{images/sphere_tracing.png}
-    \fbox{\parbox[c][5cm][c]{0.9\linewidth}{\centering \textit{[ sphere\_tracing.png goes here ]}}}
-    \caption{Sphere tracing result for the two camera views (blue and green spheres).}
+    \includegraphics[width=0.9\linewidth]{images/sphere_tracing.png}
     \label{fig:sphere_tracing}
 \end{figure}
 
@@ -77,18 +136,55 @@
 %==================================================================
 
 \subsection{Code}
-\vspace{1cm}
-\textit{[ Paste the code for \texttt{camera\_param\_to\_rays}, \texttt{sample\_points\_on\_rays} and \texttt{volume\_rendering} here ]}
-\vspace{1cm}
 
-\subsection{Rendered Result (\texttt{submit} intrinsics)}
-% -------- Place the volume rendering render here --------
+\noindent\textbf{Part A: Camera rays.} Identical to \texttt{camera\_param\_to\_rays} from the
+sphere tracing problem (see above).
+
+\medskip
+\noindent\textbf{Part B: Ray marching.}
+\begin{lstlisting}[style=py]
+def sample_points_on_rays(ray_origins, ray_directions,
+                          num_samples=64, t_near=0.0, t_far=3.0):
+    device = ray_origins.device
+
+    # 1. Uniformly spaced distances along every ray
+    ts = torch.linspace(t_near, t_far, num_samples, device=device)  # [num_samples]
+
+    # 2. point = origin + t * direction, broadcast over the sample dimension
+    points = (
+        ray_origins[..., None, :]
+        + ts[None, None, :, None] * ray_directions[..., None, :]
+    )  # [H, W, num_samples, 3]
+
+    return points, ts
+\end{lstlisting}
+
+\noindent\textbf{Part C: Volumetric rendering.}
+\begin{lstlisting}[style=py]
+def volume_rendering(densities, colors, deltas):
+    # Broadcast deltas over [H, W, N, 1]
+    deltas = deltas.view(1, 1, -1, 1)
+
+    # alpha_i = 1 - exp(-sigma_i * delta_i)
+    alpha = 1.0 - torch.exp(-densities * deltas)  # [H, W, N, 1]
+
+    # Accumulated transmittance T_i = prod_{j < i} (1 - alpha_j)  (exclusive)
+    ones = torch.ones_like(alpha[:, :, :1, :])
+    T = torch.cumprod(
+        torch.cat([ones, 1.0 - alpha + 1e-10], dim=2), dim=2
+    )[:, :, :-1, :]
+
+    # Per-sample weights and final color C = sum_i T_i * alpha_i * c_i
+    weights = T * alpha  # [H, W, N, 1]
+    image = (weights * colors).sum(dim=2)  # [H, W, 3]
+
+    return image
+\end{lstlisting}
+
+\subsection{Rendered Result}
 \begin{figure}[h]
     \centering
-    % \includegraphics[width=0.9\linewidth]{images/volume_rendering.png}
-    \fbox{\parbox[c][5cm][c]{0.9\linewidth}{\centering \textit{[ volume\_rendering.png goes here ]}}}
-    \caption{Volume rendering result for the two camera views
-    (blue/green spheres, red/yellow cubes).}
+    \includegraphics[width=0.9\linewidth]{images/volume_rendering.png}
     \label{fig:volume_rendering}
 \end{figure}
 
@@ -150,7 +246,7 @@ $\omega_0 = 2\pi$, and each subsequent frequency doubles the previous one. Every
 the input is encoded independently with both a sine and a cosine term, so the output
 dimensionality is $\texttt{dim} \times 2 \times \texttt{num\_octaves}$.
 
-\paragraph{Code (filled-in lines).}
+\noindent\textbf{Code (filled-in lines).}
 \begin{lstlisting}[style=py]
 # Create a tensor of frequencies.
 # Lowest frequency is 2*pi, each subsequent frequency doubles: omega_k = 2*pi * 2**k
