@@ -137,8 +137,7 @@ def sphere_tracing(ray_origins, ray_directions, model,
 
 \subsection{Code}
 
-\noindent\textbf{Part A: Camera rays.} Identical to \texttt{camera\_param\_to\_rays} from the
-sphere tracing problem (see above).
+\noindent\textbf{Part A: Camera rays.} Attached in 1A.
 
 \medskip
 \noindent\textbf{Part B: Ray marching.}
@@ -203,28 +202,12 @@ Not everything has a strict surface. Sphere tracing expects the world to be made
 % -------- Place renders with different sample counts here --------
 \begin{figure}[h]
     \centering
-    % \includegraphics[width=0.9\linewidth]{images/samples_comparison.png}
+    \includegraphics[width=0.9\linewidth]{images/extra_challenge_comparison.png}
     \fbox{\parbox[c][5cm][c]{0.9\linewidth}{\centering \textit{[ renders with different num\_samples go here ]}}}
     \caption{Effect of changing the number of samples along each ray
     (e.g.\ 16 / 64 / 256 samples).}
     \label{fig:samples}
 \end{figure}
-
-\noindent\textit{[ Short discussion: how does rendering quality change as the number of
-samples increases? ]}
-
-\subsection{Stratified sampling}
-% -------- Place stratified sampling visualization here --------
-\begin{figure}[h]
-    \centering
-    % \includegraphics[width=0.9\linewidth]{images/stratified_sampling.png}
-    \fbox{\parbox[c][5cm][c]{0.9\linewidth}{\centering \textit{[ stratified sampling visualization goes here ]}}}
-    \caption{Uniform sampling vs.\ stratified sampling.}
-    \label{fig:stratified}
-\end{figure}
-
-\noindent\textit{[ Short discussion: implementation of stratified sampling and the difference
-you observe compared to uniform sampling. ]}
 
 
 %==================================================================
@@ -232,19 +215,6 @@ you observe compared to uniform sampling. ]}
 %==================================================================
 
 \subsection{Positional Encoding of NeRF}
-
-I implemented the positional encoding of Equation (4) of \emph{NeRF: Representing Scenes
-as Neural Radiance Fields} (Mildenhall et al., 2020). Each input coordinate $p$ is mapped
-to a set of sinusoids at geometrically increasing frequencies:
-\begin{equation}
-    \gamma(p) = \Big(\sin(\omega_0 p),\,\cos(\omega_0 p),\,\ldots,\,
-                     \sin(\omega_{L-1} p),\,\cos(\omega_{L-1} p)\Big),
-    \qquad \omega_k = 2\pi \cdot 2^{k},
-\end{equation}
-where $L$ is the number of octaves (\texttt{num\_octaves}). The lowest frequency is
-$\omega_0 = 2\pi$, and each subsequent frequency doubles the previous one. Every channel of
-the input is encoded independently with both a sine and a cosine term, so the output
-dimensionality is $\texttt{dim} \times 2 \times \texttt{num\_octaves}$.
 
 \noindent\textbf{Code (filled-in lines).}
 \begin{lstlisting}[style=py]
