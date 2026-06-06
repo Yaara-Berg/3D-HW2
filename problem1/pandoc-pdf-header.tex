@@ -1,0 +1,17 @@
+% Fonts (adjust per OS; requires xelatex + fontspec)
+\usepackage{fontspec}
+\defaultfontfeatures{Ligatures=TeX}
+\setmainfont{Palatino}
+\setsansfont{Helvetica Neue}
+\setmonofont{Menlo}[Scale=0.92]
+
+% Tables
+\usepackage{booktabs}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.1}
+
+% Keep figures in markdown order (disable LaTeX float drift)
+\usepackage{float}
+\let\pandocorigfigure\figure
+\let\pandocorigendfigure\endfigure
+\renewenvironment{figure}[1][]{\pandocorigfigure[H]}{\pandocorigendfigure}

@@ -131,6 +131,16 @@ At $\mathrm{lr}=10^{-5}$ the model underfits within 2000 steps, analogous to M6:
 
 **Best SIREN in the sweep.** $\mathrm{lr}=5\times10^{-4}$ converges faster and reaches the highest PSNR; metrics suggest the run is still improving at step 1999, so more steps or a schedule could help further.
 
+**Training progression (S9).** Field visualizations below show how reconstruction, image gradient, and Laplacian evolve over training (summaries every 500 steps). PSNR rises from 3.61 dB at step 0 to 29.0 dB at 500, 34.8 dB at 1000, 40.1 dB at 1500, and 43.5 dB at 1999—coarse structure appears early, with fine detail and sharper derivative panels emerging in later steps.
+
+![S9 field at step 0](outputs/siren_s9_20260601_144223/field_step_000000.png)
+
+![S9 field at step 500](outputs/siren_s9_20260601_144223/field_step_000500.png)
+
+![S9 field at step 1000](outputs/siren_s9_20260601_144223/field_step_001000.png)
+
+![S9 field at step 1500](outputs/siren_s9_20260601_144223/field_step_001500.png)
+
 ![S9 field at step 1999](outputs/siren_s9_20260601_144223/field_step_001999.png)
 
 ![S9 metrics at step 1999](outputs/siren_s9_20260601_144223/metrics_step_001999.png)
@@ -144,4 +154,27 @@ Across S3, S10, S1, and S4, PSNR rises as $\omega_0$ increases (19.1 $\to$ 24.7 
 Side-by-side bar charts for all MLP (M1–M6) and SIREN (S1–S10) configurations at final step (1999). SIREN reaches much higher PSNR than any MLP run; within each family, capacity and $\omega_0$/LR tuning dominate the spread.
 
 ![MLP and SIREN sweep final PSNR](outputs/sweeps_bar_chart.png)
+
+---
+
+## C. Optimal SIREN configuration
+
+After benchmarking 16 MLP/SIREN variants on the `astronaut` image ($128\times128$), our best configuration is **run S9**:
+
+| Setting | Value |
+|:--------|:------|
+| Model | SIREN |
+| Image | `astronaut` ($128\times128$) |
+| Hidden width | 128 |
+| Hidden layers | 3 |
+| $\omega_0$ (first layer) | 20 |
+| $\omega_0$ (hidden layers) | 20 |
+| Last layer | Linear (`last_layer_linear=True`) |
+| Learning rate | $5 \times 10^{-4}$ |
+| Optimizer | Adam |
+| Loss | MSE |
+| Training steps | 2000 |
+| **Final PSNR** | **43.52 dB** |
+
+This run outperformed the S1 baseline (+8.50 dB) and all other sweep configurations, including wider networks (S7) and higher $\omega_0$ (S4). The main gain came from a higher learning rate that made better use of the fixed 2000-step budget; see the S9 training progression above for how reconstruction quality improves over time.
 
