@@ -38,10 +38,16 @@ class SineLayer(nn.Module):
         Initialize the weights of the layer according to the scheme
         described in the SIREN paper.
         """
-        raise NotImplementedError("Not implemented!")
+        if is_first_layer:
+            bound = 1.0 / in_features
+        else:
+            bound = (6.0 / in_features) ** 0.5 / self.omega_0
+        self.linear.weight.uniform_(-bound, bound)
+        if self.linear.bias is not None:
+            self.linear.bias.uniform_(-bound, bound)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError("Not implemented!")
+        return torch.sin(self.omega_0 * self.linear(x))
 
 
 class SIREN(nn.Module):
@@ -72,7 +78,40 @@ class SIREN(nn.Module):
         """
         Build the network according to the provided hyperparameters.
         """
-        raise NotImplementedError("Not implemented!")
+        layers = [
+            SineLayer(
+                self.in_features,
+                self.hidden_features,
+                bias=self.bias,
+                is_first_layer=True,
+                omega_0=self.first_omega_0,
+            )
+        ]
+        for _ in range(self.hidden_layers):
+            layers.append(
+                SineLayer(
+                    self.hidden_features,
+                    self.hidden_features,
+                    bias=self.bias,
+                    is_first_layer=False,
+                    omega_0=self.hidden_omega_0,
+                )
+            )
+        if self.last_layer_linear:
+            layers.append(
+                nn.Linear(self.hidden_features, self.out_features, bias=True)
+            )
+        else:
+            layers.append(
+                SineLayer(
+                    self.hidden_features,
+                    self.out_features,
+                    bias=self.bias,
+                    is_first_layer=False,
+                    omega_0=self.hidden_omega_0,
+                )
+            )
+        return nn.Sequential(*layers)
 
     def forward(self, coords: jaxtyping.Float[torch.Tensor, "N D"]) -> Tuple[
         jaxtyping.Float[torch.Tensor, "N out_features"],
@@ -89,4 +128,6 @@ class SIREN(nn.Module):
         -1 means "furthest left" or "furthest bottom" (depending on the dimension) and 1 means "furthest right"
         or "furthest top".
         """
-        raise NotImplementedError("Not implemented!")
+        coords = coords.clone().requires_grad_(True)
+        outputs = self.net(coords)
+        return outputs, coords

@@ -28,7 +28,24 @@ def gradient(y: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
     above, you will need to set a specific boolean parameter to one of two options. Can you
     read the documentation and figure out which one and why?
     """
-    raise NotImplementedError("Not implemented!")
+    num_outputs = y.shape[-1]
+    grads = []
+    for channel_idx in range(num_outputs):
+        # Coefficients for sum_ij (coeff_ij * y_ij); autograd.grad needs a scalar objective.
+        y_coefficients = torch.zeros_like(y)
+        y_coefficients[..., channel_idx] = 1.0
+        grad_for_channel = torch.autograd.grad(
+            y,
+            x,
+            grad_outputs=y_coefficients,
+            create_graph=True,
+            retain_graph=True,
+        )[0]
+        grads.append(grad_for_channel)
+    if num_outputs == 1:
+        return grads[0]
+    return torch.stack(grads, dim=-2)
+
 
 def divergence(y: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
     """
@@ -40,7 +57,13 @@ def divergence(y: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
     Hint: You may find the ` torch.autograd.grad` function useful. Like in `gradient`,
     you need to set a specific boolean parameter to the correct out of two options.
     """
-    raise NotImplementedError("Not implemented!")
+    jac = gradient(y, x)
+    n = min(y.shape[-1], x.shape[-1])
+    idx = torch.arange(n, device=jac.device)
+    if jac.dim() == 2:
+        return jac[..., idx].sum(dim=-1, keepdim=True)
+    return jac[..., idx, idx].sum(dim=-1, keepdim=True)
+
 
 def laplace(y: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
     """
@@ -50,4 +73,9 @@ def laplace(y: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
     Hint: You may find some of our previous functions useful and the identity in the
     `Gradient` section of Wikipedia: https://en.wikipedia.org/wiki/Laplace_operator#Generalization.
     """
-    raise NotImplementedError("Not implemented!")
+    grad_y = gradient(y, x)
+    if grad_y.dim() == 2:
+        return divergence(grad_y, x)
+    num_channels = grad_y.shape[-2]
+    laps = [divergence(grad_y[..., c, :], x) for c in range(num_channels)]
+    return torch.cat(laps, dim=-1)

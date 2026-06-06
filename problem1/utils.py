@@ -60,7 +60,13 @@ def psnr(model_output: torch.Tensor, ground_truth: torch.Tensor):
     return 10 * torch.log10(1 / mse)
 
 
-def plot(dataset: ImageDataset, model_output: torch.Tensor, img_grad: torch.Tensor, img_laplacian: torch.Tensor):
+def plot(
+    dataset: ImageDataset,
+    model_output: torch.Tensor,
+    img_grad: torch.Tensor,
+    img_laplacian: torch.Tensor,
+    save_path: str | None = None,
+):
     img = dataset.img.cpu().view(dataset.height, dataset.height)
 
     _, axs = plt.subplots(ncols=4, figsize=(18, 6))
@@ -73,4 +79,6 @@ def plot(dataset: ImageDataset, model_output: torch.Tensor, img_grad: torch.Tens
     axs[3].imshow(img_laplacian.cpu().detach().view(dataset.height, dataset.height), cmap="turbo")
     axs[3].set_title("Image Laplacian")
     plt.tight_layout()
+    if save_path is not None:
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
     plt.show()

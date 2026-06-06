@@ -1,21 +1,27 @@
 # Problem 1: SIRENs
 
-In this problem, you will learn the theory underlying Sine Representation Networks (SIRENs), and implement the model yourself. This exercise will serve as an introduction to both neural fields and computer vision research, as you will implement the model (along with many baselines) from scratch.
+In this problem, you will learn the theory underlying Sine Representation Networks (SIRENs), and implement the model yourself. This exercise will serve as an **introduction** to both neural fields and computer vision research, as you will implement the model (along with many baselines) from scratch.
 
 ## Part 1: Understanding the theory
 
 For this part, start by reading the SIRENs paper:
+
 > [*Implicit Neural Representations with Periodic Activation Functions*](https://arxiv.org/abs/2006.09661) by Sitzmann and Martel et al., NeurIPS 2020
 
 Next, answer all the multiple choice questions in `multiple_choice.yml` to test your comprehension.
 
 ## Part 2: Implementing SIRENs (and an MLP baseline)
+
 ### Installation
+
 It is recommended that you install the relevant packages with
+
 ```bash
 conda create -n <insert name> python=3.12
 ```
+
 and then
+
 ```bash
 conda activate <insert name> && \
   pip3 install -r requirements.txt
@@ -30,10 +36,10 @@ Everything should run on CPU
 Using your knowledge from the paper, do the following:
 
 - Implement all missing functions in the `problem_1_*.py` files
-  - Implement a SIREN (`problem_1_siren.py`)
-  - Implement a bog-standard feed-forward MLP (`problem_1_mlp.py`)
-  - Implement derivative-calculating functions (`problem_1_gradient.py`, you will need SIREN and MLP already implemented if you want to unit test this)
-  - Implement a flexible MLP/SIREN training loop (`problem_1_train.py`)
+    - Implement a SIREN (`problem_1_siren.py`)
+    - Implement a bog-standard feed-forward MLP (`problem_1_mlp.py`)
+    - Implement derivative-calculating functions (`problem_1_gradient.py`, you will need SIREN and MLP already implemented if you want to unit test this)
+    - Implement a flexible MLP/SIREN training loop (`problem_1_train.py`)
 - Run the notebook `benchmark.ipynb` to check your functions and visualize the training process
 
 **Testing**. You are provided an optional suite of unit tests in `test_sanity.py` which check that your functions work properly and that your multiple choice YAML is properly formatted. Use them with `pytest .` to help debug your code, but **they will not be used to grade**. You can also look at some example outputs in `should_look_like/`. The unit tests use regression-testing based on a "correct" solution by the TAs and the serialized expected outputs are saved in `test_data/` so do not modfiy that folder. To run all tests except the slowest one, use `pytest . -k "not initialization"`.
@@ -59,7 +65,6 @@ Include plots and analyses for the following investigations in `problem_1.pdf`:
 Your visualization should look like what is in `should_look_like/` (not in the minutiae, but it should display all of your `problem1_gradients.py` implementations over the course of training along with the image as output by your model based on the coordinates, as well as a PSNR curve comparing different outputs).
 
 **For extra credit:** implement another (nontrivial) model from the literature and add it to your benchmarks! If you do this, please describe the model you implemented in your writeup.
-
 
 ## Submission Instructions
 

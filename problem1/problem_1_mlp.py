@@ -40,7 +40,25 @@ class MLP(nn.Module):
 
     def initialize_net(self):
         """Build the network according to the provided hyperparameters."""
-        raise NotImplementedError("Not implemented!")
+        layers = []
+        act = getattr(nn, self.activation)
+
+        layers.append(
+            nn.Linear(self.in_features, self.hidden_features, bias=self.bias)
+        )
+        layers.append(act())
+
+        for _ in range(self.hidden_layers - 1):
+            layers.append(
+                nn.Linear(self.hidden_features, self.hidden_features, bias=self.bias)
+            )
+            layers.append(act())
+
+        layers.append(
+            nn.Linear(self.hidden_features, self.out_features, bias=self.bias)
+        )
+
+        return nn.Sequential(*layers)
     
     def forward(self, coords: jaxtyping.Float[torch.Tensor, "N D"]) -> Tuple[
         jaxtyping.Float[torch.Tensor, "N out_features"],
@@ -57,4 +75,6 @@ class MLP(nn.Module):
         -1 means "furthest left" or "furthest bottom" (depending on the dimension) and 1 means "furthest right"
         or "furthest top".
         """
-        raise NotImplementedError("Not implemented!")
+        coords = coords.clone().requires_grad_(True)
+        outputs = self.net(coords)
+        return outputs, coords

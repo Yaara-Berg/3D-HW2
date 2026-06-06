@@ -1,0 +1,18 @@
+{
+  "model": "SIREN",
+  "lr": 0.0001,
+  "total_steps": 2000,
+  "steps_til_summary": 500,
+  "device": "cpu",
+  "dataset_height": 128,
+  "in_features": 2,
+  "out_features": 1,
+  "loss": "mse",
+  "optimizer": "adam",
+  "hidden_features": 128,
+  "first_omega_0": 20.0,
+  "hidden_omega_0": 20.0,
+  "last_layer_linear": true,
+  "hidden_layers": 3,
+  "bias": true
+}
