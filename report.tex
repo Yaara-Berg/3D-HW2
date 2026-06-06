@@ -10,6 +10,7 @@
 \usepackage{xcolor}
 \usepackage{caption}
 \usepackage{subcaption}
+\usepackage{float}
 \usepackage{hyperref}
 
 % ---------- Code listing style (for pasted code, optional) ----------
@@ -125,7 +126,7 @@ def sphere_tracing(ray_origins, ray_directions, model,
 \end{lstlisting}
 
 \subsection{Rendered Result}
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.9\linewidth]{images/sphere_tracing.png}
     \label{fig:sphere_tracing}
@@ -181,7 +182,7 @@ def volume_rendering(densities, colors, deltas):
 \end{lstlisting}
 
 \subsection{Rendered Result}
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.9\linewidth]{images/volume_rendering.png}
     \label{fig:volume_rendering}
@@ -200,10 +201,9 @@ Not everything has a strict surface. Sphere tracing expects the world to be made
 
 \subsection{Effect of the number of samples}
 % -------- Place renders with different sample counts here --------
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.9\linewidth]{images/extra_challenge_comparison.png}
-    \fbox{\parbox[c][5cm][c]{0.9\linewidth}{\centering \textit{[ renders with different num\_samples go here ]}}}
     \caption{Effect of changing the number of samples along each ray
     (e.g.\ 16 / 64 / 256 samples).}
     \label{fig:samples}
@@ -242,10 +242,9 @@ for i, freq in enumerate(freq_bands):
 % \end{figure}
 
 \paragraph{Test result.} Running \texttt{python -m tests.test\_positional\_encoding} passes.
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
-    % \includegraphics[width=0.7\linewidth]{images/pe_test_pass.png}
-    \fbox{\parbox[c][3cm][c]{0.7\linewidth}{\centering \textit{[ screenshot of the passing positional-encoding test goes here ]}}}
+    \includegraphics[width=0.85\linewidth]{images/pe_test_pass.png}
     \caption{Output of the positional-encoding unit test.}
     \label{fig:pe_test}
 \end{figure}
@@ -253,28 +252,41 @@ for i, freq in enumerate(freq_bands):
 \subsection{NeRF Forward Pass}
 
 The volumetric rendering in \texttt{src/nerf.py} was already mostly implemented; only the final
-compositing call had to be filled in. After generating midpoint samples along each ray,
-evaluating the field, and computing the per-segment $\alpha$ values, the ray color is obtained
-by alpha-compositing the colors with their $\alpha$ values (assuming a black background):
+compositing call had to be filled in. The full \texttt{forward} method is shown below. After
+generating midpoint samples along each ray, evaluating the field, and computing the per-segment
+$\alpha$ values, the ray color is obtained by alpha-compositing the colors with their $\alpha$
+values (assuming a black background). The filled-in line is marked in the listing.
+
 \begin{lstlisting}[style=py]
-# 4. Composite the alpha values and colors.
-radiance = self.alpha_composite(alphas, colors)
+def forward(
+    self,
+    origins: Float[Tensor, "batch 3"],
+    directions: Float[Tensor, "batch 3"],
+    near: float,
+    far: float,
+) -> Float[Tensor, "batch 3"]:
+    num_samples = self.cfg.num_samples
+    # 1. Generate sample locations along the rays
+    sample_locations, boundaries = self.generate_samples(
+        origins, directions, near, far, num_samples
+    )
+
+    # 2. Evaluate the neural field at the sample locations
+    field_outputs = self.field(sample_locations.reshape(-1, 3)).reshape(
+        origins.size(0), num_samples, -1
+    )
+
+    colors = field_outputs[..., :3]  # RGB colors
+    densities = field_outputs[..., 3]  # Volumetric densities
+
+    # 3. Compute the alpha values
+    alphas = self.compute_alpha_values(densities, boundaries)
+
+    # 4. Composite the alpha values and colors (filled in)
+    radiance = self.alpha_composite(alphas, colors)
+
+    return radiance
 \end{lstlisting}
-
-% --- Optional: replace the listing above with a screenshot of your code ---
-% \begin{figure}[h]
-%     \centering
-%     \includegraphics[width=\linewidth]{images/code_nerf_forward.png}
-%     \caption{Filled-in line in \texttt{NeRF.forward}.}
-% \end{figure}
-
-\begin{figure}[h]
-    \centering
-    % \includegraphics[width=\linewidth]{images/code_nerf_forward.png}
-    \fbox{\parbox[c][4cm][c]{0.9\linewidth}{\centering \textit{[ optional: screenshot of the full \texttt{NeRF.forward} method goes here ]}}}
-    \caption{The NeRF forward pass (sample $\rightarrow$ evaluate field $\rightarrow$ alpha $\rightarrow$ composite).}
-    \label{fig:nerf_forward}
-\end{figure}
 
 \subsection{Question: Difference from the Original NeRF Paper}
 
@@ -306,26 +318,33 @@ The model was trained with \texttt{python -m scripts.train\_nerf}. Below are fin
 the \texttt{outputs/spin} folder. The 3D structure of the \texttt{lego} scene is perceivable
 even though the result is somewhat blurred.
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
-    \begin{subfigure}{0.45\linewidth}
+    \begin{subfigure}{0.32\linewidth}
         \centering
-        % \includegraphics[width=\linewidth]{images/spin_1.png}
-        \fbox{\parbox[c][5cm][c]{\linewidth}{\centering \textit{[ spin image 1 goes here ]}}}
-        \caption{Final rendering, view 1.}
+        \includegraphics[width=\linewidth]{images/spin_1.png}
+        \caption{View 1 ($0^{\circ}$ azimuth).}
     \end{subfigure}
     \hfill
-    \begin{subfigure}{0.45\linewidth}
+    \begin{subfigure}{0.32\linewidth}
         \centering
-        % \includegraphics[width=\linewidth]{images/spin_2.png}
-        \fbox{\parbox[c][5cm][c]{\linewidth}{\centering \textit{[ spin image 2 goes here ]}}}
-        \caption{Final rendering, view 2.}
+        \includegraphics[width=\linewidth]{images/spin_2.png}
+        \caption{View 2 ($\approx 96^{\circ}$ azimuth).}
     \end{subfigure}
-    \caption{At least two final images from the \texttt{outputs/spin} folder after training.}
+    \hfill
+    \begin{subfigure}{0.32\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/spin_3.png}
+        \caption{View 3 ($\approx 264^{\circ}$ azimuth).}
+    \end{subfigure}
+    \caption{Final renderings from the \texttt{outputs/spin} folder after training (30-step camera orbit).}
     \label{fig:spin}
 \end{figure}
 
-\noindent\textit{[ Optional: note the training configuration you used (number of MLP layers,
-hidden size, number of iterations, device, and training time). ]}
+\noindent\textbf{Training configuration.} The model was trained on an Apple M2 MacBook using
+MPS (Metal GPU acceleration) with the default settings in \texttt{config/train\_nerf.yaml} and
+\texttt{config/field/mlp.yaml}: 8192 iterations, learning rate $10^{-3}$, batch size 512,
+128 samples per ray, 4 hidden MLP layers with hidden dimension 256, and 6 positional-encoding
+octaves. Training took approximately 14 minutes end-to-end on MPS.
 
 \end{document}

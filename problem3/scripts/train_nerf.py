@@ -23,6 +23,9 @@ with install_import_hook(
     from src.visualization.layout import add_border, hcat
     from src.visualization.annotation import draw_label
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+FONT_PATH = PROJECT_ROOT / "data" / "Inter-Regular.ttf"
+
 
 @hydra.main(
     version_base=None,
@@ -31,7 +34,13 @@ with install_import_hook(
 )
 def train(cfg: DictConfig):
     # Set up the dataset, field, optimizer, and loss function.
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda:0")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+    print(f"Using device: {device}")
     dataset = DatasetNeRF(cfg.dataset)
     field = get_field(cfg, 3, 4).to(device)
     nerf = NeRF(cfg.nerf, field)
@@ -103,7 +112,7 @@ def train(cfg: DictConfig):
                     vis_w,
                     dataset.extrinsics[rb],
                     dataset.intrinsics[rb],
-                )
+                ).cpu()
 
                 # Create a side-by-side visualization.
                 ground_truth = F.interpolate(
@@ -111,17 +120,17 @@ def train(cfg: DictConfig):
                     (vis_h, vis_w),
                     mode="bilinear",
                     align_corners=False,
-                )[0]
+                )[0].cpu()
 
                 # Create labeled images directly using torch.cat for proper layout
                 gt_label = draw_label(
                     "Ground Truth",
-                    Path("data/Inter-Regular.otf"),
+                    FONT_PATH,
                     24,
                     ground_truth.device,
                 )
                 pred_label = draw_label(
-                    "Predicted", Path("data/Inter-Regular.otf"), 24, predicted.device
+                    "Predicted", FONT_PATH, 24, predicted.device
                 )
 
                 # Resize the labels to match the width of the images if needed

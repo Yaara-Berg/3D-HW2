@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 from torch import nn
 
@@ -16,10 +15,18 @@ class SineLayer(nn.Module):
         self.omega_0 = omega_0
         self.is_first = is_first
         self.d_in = d_in
-        raise NotImplementedError("Use your problem1 implementation")
+        self.linear = nn.Linear(d_in, d_out, bias=bias)
+        self.init_weights()
 
+    @torch.no_grad()
     def init_weights(self):
-        raise NotImplementedError("Use your problem1 implementation")
+        if self.is_first:
+            bound = 1.0 / self.d_in
+        else:
+            bound = (6.0 / self.d_in) ** 0.5 / self.omega_0
+        self.linear.weight.uniform_(-bound, bound)
+        if self.linear.bias is not None:
+            self.linear.bias.uniform_(-bound, bound)
 
     def forward(self, input):
-        raise NotImplementedError("Use your problem1 implementation")
+        return torch.sin(self.omega_0 * self.linear(input))
