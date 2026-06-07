@@ -192,7 +192,7 @@ def volume_rendering(densities, colors, deltas):
 \subsection{Why is volume rendering preferred over sphere tracing?}
 %==================================================================
 
-Not everything has a strict surface. Sphere tracing expects the world to be made of solid objects.  But if you try to render smoke, hair, or fire, there's no real 'surface' to hit. Moreover, the volume rendering naturally handles all the fluffy and transparent stuff that SDFs struggle with.
+Not everything has a strict surface. Sphere tracing expects the world to be made of solid objects, but if you try to render smoke or fire, there's no real 'surface' to hit. Moreover, volume rendering can likely better handle edge ambiguity—caused not only by the material itself, but also by poor observations.
 
 
 %==================================================================
@@ -206,8 +206,8 @@ Not everything has a strict surface. Sphere tracing expects the world to be made
 \end{figure}
 
 The fewer samples we take, the more noise and artifacts we get.
-In \textbf{uniform} sampling a whole object can slip right between two samples and get missed completely, but the objects we do hit come out nice and full with no holes.
-In \textbf{stratified} sampling we almost never miss an object entirely, but since the samples land in different places on neighboring rays, we end up with more holes and a grainier look.
+In uniform sampling a whole object can slip right between two samples and get missed completely, but the objects we do hit come out nice and full with no holes.
+In stratified sampling we almost never miss an object entirely, but since the samples land in different places on neighboring rays, we end up with more holes and a grainier look.
 
 
 
@@ -280,13 +280,11 @@ def forward(
 \subsection{Question: Difference from the Original NeRF Paper}
 
 \begin{itemize}
-    \item Our model only uses the 3D position $\mathbf{x}=(x,y,z)$ to guess the color. The original NeRF also looks at the viewing angle $\mathbf{d}$. This means the original model can render reflections/shiny surfaces.
+    \item Our model only uses the 3D position to guess the color. The original NeRF also looks at the viewing angle. This means the original model can render reflections/shiny surfaces.
     \item We use uniform sampling along the ray with a single network. The original NeRF uses a more complex coarse-to-fine sampling with two networks, which allows it to get sharper details.
 \end{itemize}
 
-\subsection{Final Rendering (\texttt{outputs/spin})}
-
-The final views: 
+\subsection{Final Rendering}
 
 \begin{figure}[H]
     \centering
