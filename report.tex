@@ -192,18 +192,18 @@ def volume_rendering(densities, colors, deltas):
 \subsection{Why is volume rendering preferred over sphere tracing?}
 %==================================================================
 
-Not everything has a strict surface. Sphere tracing expects the world to be made of solid objects.  But if you try to render smoke, hair, or fire, there's no real 'surface' to hit. Volume rendering just uses a density field, so it naturally handles all the fluffy and transparent stuff that SDFs struggle with.
+Not everything has a strict surface. Sphere tracing expects the world to be made of solid objects.  But if you try to render smoke, hair, or fire, there's no real 'surface' to hit. Moreover, volume rendering just uses a density field, so it naturally handles all the fluffy and transparent stuff that SDFs struggle with.
 
 
 %==================================================================
 \section{Extra Challenge}
 %==================================================================
 
-\subsection{Effect of the number of samples}
+\subsection{Effect of number and type of sampling}
 % -------- Place renders with different sample counts here --------
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.9\linewidth]{images/extra_challenge_comparison.png}
+    \includegraphics[width=0.7\linewidth]{images/extra_challenge_comparison.png}
     \caption{Effect of changing the number of samples along each ray
     (e.g.\ 16 / 64 / 256 samples).}
     \label{fig:samples}
@@ -211,12 +211,12 @@ Not everything has a strict surface. Sphere tracing expects the world to be made
 
 
 %==================================================================
-\section{Problem 3: Playing with a NeRF}
+\section{Problem 3}
 %==================================================================
 
 \subsection{Positional Encoding of NeRF}
 
-\noindent\textbf{Code (filled-in lines).}
+\noindent\textbf{Code}
 \begin{lstlisting}[style=py]
 # Create a tensor of frequencies.
 # Lowest frequency is 2*pi, each subsequent frequency doubles: omega_k = 2*pi * 2**k
