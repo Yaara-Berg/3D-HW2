@@ -35,8 +35,8 @@
     tabsize=4
 }
 
-\title{Homework Report}
-\author{}
+\title{3D Deep Learning 67801- Exercise 2 | Problem 2 + 3- Report}
+\author{Hadar Hever, Yaara Bergfroind}
 \date{}
 
 \begin{document}
@@ -192,22 +192,23 @@ def volume_rendering(densities, colors, deltas):
 \subsection{Why is volume rendering preferred over sphere tracing?}
 %==================================================================
 
-Not everything has a strict surface. Sphere tracing expects the world to be made of solid objects.  But if you try to render smoke, hair, or fire, there's no real 'surface' to hit. Moreover, volume rendering just uses a density field, so it naturally handles all the fluffy and transparent stuff that SDFs struggle with.
+Not everything has a strict surface. Sphere tracing expects the world to be made of solid objects.  But if you try to render smoke, hair, or fire, there's no real 'surface' to hit. Moreover, the volume rendering naturally handles all the fluffy and transparent stuff that SDFs struggle with.
 
 
 %==================================================================
 \section{Extra Challenge}
 %==================================================================
 
-\subsection{Effect of number and type of sampling}
-% -------- Place renders with different sample counts here --------
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.7\linewidth]{images/extra_challenge_comparison.png}
-    \caption{Effect of changing the number of samples along each ray
-    (e.g.\ 16 / 64 / 256 samples).}
     \label{fig:samples}
 \end{figure}
+
+The fewer samples we take, the more noise and artifacts we get.
+In \textbf{uniform} sampling a whole object can slip right between two samples and get missed completely, but the objects we do hit come out nice and full with no holes.
+In \textbf{stratified} sampling we almost never miss an object entirely, but since the samples land in different places on neighboring rays, we end up with more holes and a grainier look.
+
 
 
 %==================================================================
@@ -234,28 +235,16 @@ for i, freq in enumerate(freq_bands):
     )
 \end{lstlisting}
 
-% --- Optional: replace the listing above with a screenshot of your code ---
-% \begin{figure}[h]
-%     \centering
-%     \includegraphics[width=\linewidth]{images/code_positional_encoding.png}
-%     \caption{Filled-in \texttt{PositionalEncoding.forward}.}
-% \end{figure}
 
 \paragraph{Test result.} Running \texttt{python -m tests.test\_positional\_encoding} passes.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.85\linewidth]{images/pe_test_pass.png}
-    \caption{Output of the positional-encoding unit test.}
     \label{fig:pe_test}
 \end{figure}
 
 \subsection{NeRF Forward Pass}
 
-The volumetric rendering in \texttt{src/nerf.py} was already mostly implemented; only the final
-compositing call had to be filled in. The full \texttt{forward} method is shown below. After
-generating midpoint samples along each ray, evaluating the field, and computing the per-segment
-$\alpha$ values, the ray color is obtained by alpha-compositing the colors with their $\alpha$
-values (assuming a black background). The filled-in line is marked in the listing.
 
 \begin{lstlisting}[style=py]
 def forward(
@@ -290,33 +279,14 @@ def forward(
 
 \subsection{Question: Difference from the Original NeRF Paper}
 
-The rendering model in this assignment differs from the original NeRF paper in (at least)
-the following ways (the hint points at \emph{rendering} and \emph{ray sampling}):
-
 \begin{itemize}
-    \item \textbf{No view-direction dependence (rendering).} Our neural field maps a 3D
-    \emph{position} $\mathbf{x}=(x,y,z)$ directly to an RGB color and a density. The original
-    NeRF additionally conditions the color on the \emph{viewing direction} $\mathbf{d}$
-    (a 5D input $(\mathbf{x},\mathbf{d})$), which lets it model view-dependent effects such as
-    specular highlights and reflections. Our color is purely a function of position, so it
-    cannot represent such effects.
-
-    \item \textbf{Deterministic, single-scale ray sampling (ray sampling).} We split each ray
-    into equally spaced segments and always query the fixed \emph{midpoints} of those segments
-    (see \texttt{generate\_samples}). The original NeRF instead uses \emph{stratified} sampling
-    (a random jitter within each bin during training) and a \emph{hierarchical} coarse-to-fine
-    scheme with two networks, where a second ``fine'' network is sampled more densely around
-    regions of high density predicted by the ``coarse'' network. Our implementation uses a
-    single network with no random jitter and no hierarchical resampling.
+    \item Our model only uses the 3D position $\mathbf{x}=(x,y,z)$ to guess the color. The original NeRF also looks at the viewing angle $\mathbf{d}$. This means the original model can render reflections/shiny surfaces.
+    \item We use uniform sampling along the ray with a single network. The original NeRF uses a more complex coarse-to-fine sampling with two networks, which allows it to get sharper details.
 \end{itemize}
-
-\noindent\textit{(Either of the two points above is a sufficient answer to the question.)}
 
 \subsection{Final Rendering (\texttt{outputs/spin})}
 
-The model was trained with \texttt{python -m scripts.train\_nerf}. Below are final views from
-the \texttt{outputs/spin} folder. The 3D structure of the \texttt{lego} scene is perceivable
-even though the result is somewhat blurred.
+The final views: 
 
 \begin{figure}[H]
     \centering
@@ -337,14 +307,9 @@ even though the result is somewhat blurred.
         \includegraphics[width=\linewidth]{images/spin_3.png}
         \caption{View 3 ($\approx 264^{\circ}$ azimuth).}
     \end{subfigure}
-    \caption{Final renderings from the \texttt{outputs/spin} folder after training (30-step camera orbit).}
     \label{fig:spin}
 \end{figure}
 
-\noindent\textbf{Training configuration.} The model was trained on an Apple M2 MacBook using
-MPS (Metal GPU acceleration) with the default settings in \texttt{config/train\_nerf.yaml} and
-\texttt{config/field/mlp.yaml}: 8192 iterations, learning rate $10^{-3}$, batch size 512,
-128 samples per ray, 4 hidden MLP layers with hidden dimension 256, and 6 positional-encoding
-octaves. Training took approximately 14 minutes end-to-end on MPS.
+Our model was trained with 4 hidden MLP layers with hidden size 256, 128 samples per ray and 6 positional-encoding octaves. 
 
 \end{document}
